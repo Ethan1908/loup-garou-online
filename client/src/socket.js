@@ -1,8 +1,5 @@
 import { io } from 'socket.io-client';
 
-const socket = io('http://localhost:3001', {
-  autoConnect: true,
-  transports: ['websocket'],
-});
+const socket = io(import.meta.env.VITE_BACKEND_URL);
 
 export default socket;
