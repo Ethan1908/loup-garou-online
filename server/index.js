@@ -1,22 +1,24 @@
 import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 import cors from 'cors';
+import { Server } from 'socket.io';
+import http from 'http';
 
 const app = express();
-const httpServer = createServer(app);
+const httpServer = http.createServer(app);
 
+// ✅ Autorise l'origine Netlify
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: 'https://loup-garou-online.netlify.app',
   methods: ['GET', 'POST'],
-  credentials: true,
+  credentials: true
 }));
 
+// ⚠️ Configure aussi CORS pour socket.io
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: 'https://loup-garou-online.netlify.app/',
     methods: ['GET', 'POST'],
-    credentials: true,
+    credentials: true
   }
 });
 
