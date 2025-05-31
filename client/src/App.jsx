@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import socket from './socket';
-import './App.css'; // Import du fichier CSS
+import './App.css';
 
 export default function App() {
   const [player, setPlayer] = useState(null);
@@ -8,26 +8,72 @@ export default function App() {
   const [players, setPlayers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [role, setRole] = useState(null);
+  const [phase, setPhase] = useState('waiting');
+  const [gameStarted, setGameStarted] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [notification, setNotification] = useState(null);
 
+  // Gestion des événements Socket.io
   useEffect(() => {
     socket.on('joined', ({ room }) => setRoom(room));
     socket.on('players-update', (players) => setPlayers(players));
     socket.on('receive-message', ({ username, message, timestamp }) => {
-      setMessages((prev) => [...prev, { username, message, timestamp }]);
+      setMessages(prev => [...prev, { username, message, timestamp }]);
+    });
+    socket.on('role-assigned', ({ role }) => {
+      setRole(role);
+      setNotification(`Vous êtes ${role.name}!`);
+    });
+    socket.on('game-started', () => setGameStarted(true));
+    socket.on('phase-change', ({ phase }) => {
+      setPhase(phase);
+      setTimeLeft(60);
+      setNotification(`Phase ${phase === 'night' ? 'nuit' : 'jour'} commence!`);
+    });
+    socket.on('player-killed', ({ victimId }) => {
+      setPlayers(prev => prev.filter(p => p.id !== victimId));
+    });
+    socket.on('voyante-result', ({ player, role }) => {
+      setNotification(`${player} est ${role}`);
     });
 
     return () => {
       socket.off('joined');
       socket.off('players-update');
       socket.off('receive-message');
+      socket.off('role-assigned');
+      socket.off('game-started');
+      socket.off('phase-change');
+      socket.off('player-killed');
+      socket.off('voyante-result');
     };
   }, []);
 
+  // Timer des phases
+  useEffect(() => {
+    if (phase !== 'night' && phase !== 'day') return;
+
+    const timer = setInterval(() => {
+      setTimeLeft(prev => prev <= 1 ? 60 : prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [phase]);
+
+  // Gestion des notifications
+  useEffect(() => {
+    const timer = notification && setTimeout(() => setNotification(null), 3000);
+    return () => timer && clearTimeout(timer);
+  }, [notification]);
+
+  // Rejoindre une salle
   const handleJoin = ({ username, roomCode }) => {
-    setPlayer({ username });
+    setPlayer({ username, id: socket.id });
     socket.emit('join-room', { username, roomCode });
   };
 
+  // Envoyer un message
   const handleSend = (e) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
@@ -39,9 +85,30 @@ export default function App() {
     setNewMessage('');
   };
 
+  // Démarrer le jeu
+  const handleStartGame = () => {
+    socket.emit('start-game', room);
+  };
+
+  // Vote loup-garou
+  const handleLoupVote = (targetId) => {
+    socket.emit('loup-vote', { roomCode: room, targetId });
+  };
+
+  // Action voyante
+  const handleVoyanteAction = (targetId) => {
+    socket.emit('voyante-action', { roomCode: room, targetId });
+  };
+
   return (
     <div className="app-container">
       <h1 className="game-title">Loup-Garou Online</h1>
+
+      {notification && (
+        <div className="notification">
+          {notification}
+        </div>
+      )}
 
       {!player ? (
         <JoinForm onJoin={handleJoin} />
@@ -51,13 +118,53 @@ export default function App() {
             <h2 className="section-title">
               Salle : <span className="room-info">{room}</span>
             </h2>
-            <h3 className="section-title">Joueurs :</h3>
+            <h3 className="section-title">Joueurs ({players.length}) :</h3>
             <ul className="players-list">
               {players.map((p) => (
-                <li key={p.id}>{p.username}</li>
+                <li key={p.id}>
+                  {p.username}
+                  {gameStarted && p.role?.team === 'loups' && role?.team === 'loups' && (
+                    <span className="player-loup"> (Loup)</span>
+                  )}
+                </li>
               ))}
             </ul>
+
+            {!gameStarted && players[0]?.id === socket.id && (
+              <button 
+                onClick={handleStartGame}
+                className="start-button"
+                disabled={players.length < 4}
+              >
+                Commencer la partie ({players.length}/8)
+              </button>
+            )}
           </div>
+
+          {gameStarted && (
+            <div className="game-phase">
+              <h3>
+                Phase: {phase === 'night' ? 'Nuit' : 'Jour'} 
+                <span className="phase-timer"> - {timeLeft}s</span>
+              </h3>
+              {role && (
+                <div className="role-info">
+                  <h4>Votre rôle: {role.name}</h4>
+                  <p>{getRoleDescription(role.name)}</p>
+                  {role.team === 'loups' && phase === 'day' && (
+                    <p className="warning">⚠️ Faites semblant d'être un villageois !</p>
+                  )}
+                </div>
+              )}
+              {phase === 'night' && role?.nightAction && (
+                <NightActions 
+                  role={role} 
+                  players={players} 
+                  onAction={role.name === 'Loup-Garou' ? handleLoupVote : handleVoyanteAction} 
+                />
+              )}
+            </div>
+          )}
 
           <div>
             <h3 className="section-title">Chat</h3>
@@ -79,10 +186,7 @@ export default function App() {
                 onChange={(e) => setNewMessage(e.target.value)}
                 className="message-input"
               />
-              <button
-                type="submit"
-                className="send-button"
-              >
+              <button type="submit" className="send-button">
                 Envoyer
               </button>
             </form>
@@ -111,6 +215,7 @@ function JoinForm({ onJoin }) {
         value={username}
         onChange={(e) => setUsername(e.target.value)}
         className="form-input"
+        required
       />
       <input
         type="text"
@@ -119,12 +224,57 @@ function JoinForm({ onJoin }) {
         onChange={(e) => setRoomCode(e.target.value)}
         className="form-input"
       />
-      <button
-        type="submit"
-        className="submit-button"
-      >
+      <button type="submit" className="submit-button">
         Rejoindre la partie
       </button>
     </form>
   );
+}
+
+function NightActions({ role, players, onAction }) {
+  const [selectedPlayer, setSelectedPlayer] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (selectedPlayer && onAction) {
+      onAction(selectedPlayer);
+      setSelectedPlayer('');
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="night-actions">
+      <h4>Action de nuit ({role.name})</h4>
+      <select 
+        value={selectedPlayer}
+        onChange={(e) => setSelectedPlayer(e.target.value)}
+        className="action-select"
+        required
+      >
+        <option value="">Choisir un joueur</option>
+        {players
+          .filter(p => 
+            role.name === 'Loup-Garou' 
+              ? p.role?.team !== 'loups' && p.id !== socket.id
+              : p.id !== socket.id
+          )
+          .map(p => (
+            <option key={p.id} value={p.id}>{p.username}</option>
+          ))}
+      </select>
+      <button type="submit" className="action-button">
+        Valider
+      </button>
+    </form>
+  );
+}
+
+function getRoleDescription(roleName) {
+  const descriptions = {
+    'Villageois': 'Vous devez trouver et éliminer les Loups-Garous.',
+    'Loup-Garou': 'Dévorer un villageois chaque nuit. Le jour, faites semblant d\'être innocent!',
+    'Voyante': 'Chaque nuit, découvrez le vrai rôle d\'un joueur.',
+    'Chasseur': 'Si vous mourez, vous pouvez emporter quelqu\'un avec vous.'
+  };
+  return descriptions[roleName] || '';
 }
