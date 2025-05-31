@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import socket from './socket';
+import './App.css'; // Import du fichier CSS
 
 export default function App() {
   const [player, setPlayer] = useState(null);
@@ -39,19 +40,19 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
-      <h1 className="text-4xl font-bold text-yellow-400 mb-6">Loup-Garou Online</h1>
+    <div className="app-container">
+      <h1 className="game-title">Loup-Garou Online</h1>
 
       {!player ? (
         <JoinForm onJoin={handleJoin} />
       ) : (
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md space-y-6">
+        <div className="game-container">
           <div>
-            <h2 className="text-yellow-400 font-semibold mb-2">
-              Salle : <span className="text-white">{room}</span>
+            <h2 className="section-title">
+              Salle : <span className="room-info">{room}</span>
             </h2>
-            <h3 className="text-yellow-400 font-semibold mb-2">Joueurs :</h3>
-            <ul className="text-white list-disc list-inside max-h-32 overflow-y-auto">
+            <h3 className="section-title">Joueurs :</h3>
+            <ul className="players-list">
               {players.map((p) => (
                 <li key={p.id}>{p.username}</li>
               ))}
@@ -59,28 +60,28 @@ export default function App() {
           </div>
 
           <div>
-            <h3 className="text-yellow-400 font-semibold mb-2">Chat</h3>
-            <div className="bg-gray-700 p-3 rounded max-h-40 overflow-y-auto text-white text-sm mb-2">
+            <h3 className="section-title">Chat</h3>
+            <div className="chat-container">
               {messages.map((msg, idx) => (
                 <div key={idx}>
                   <strong>{msg.username}:</strong> {msg.message}
-                  <span className="text-xs text-gray-400 ml-2">
+                  <span className="message-time">
                     ({new Date(msg.timestamp).toLocaleTimeString()})
                   </span>
                 </div>
               ))}
             </div>
-            <form onSubmit={handleSend} className="flex space-x-2">
+            <form onSubmit={handleSend} className="message-form">
               <input
                 type="text"
                 placeholder="Tape ton message"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                className="flex-grow px-3 py-2 rounded border border-gray-600 bg-gray-600 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                className="message-input"
               />
               <button
                 type="submit"
-                className="bg-yellow-400 text-gray-900 font-semibold px-4 rounded hover:bg-yellow-500 transition"
+                className="send-button"
               >
                 Envoyer
               </button>
@@ -103,24 +104,24 @@ function JoinForm({ onJoin }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-sm">
+    <form onSubmit={handleSubmit} className="join-form">
       <input
         type="text"
         placeholder="Ton pseudo"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        className="w-full mb-4 px-3 py-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+        className="form-input"
       />
       <input
         type="text"
         placeholder="Code de salle (optionnel)"
         value={roomCode}
         onChange={(e) => setRoomCode(e.target.value)}
-        className="w-full mb-6 px-3 py-2 rounded border border-gray-600 bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-yellow-400"
+        className="form-input"
       />
       <button
         type="submit"
-        className="w-full bg-yellow-400 text-gray-900 font-semibold py-2 rounded hover:bg-yellow-500 transition"
+        className="submit-button"
       >
         Rejoindre la partie
       </button>

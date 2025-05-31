@@ -1,3 +1,136 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Styles généraux */
+.app-container {
+  min-height: 100vh;
+  background-color: #111827; /* gray-900 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.game-title {
+  font-size: 2.25rem; /* text-4xl */
+  font-weight: 700; /* font-bold */
+  color: #f59e0b; /* yellow-400 */
+  margin-bottom: 1.5rem; /* mb-6 */
+}
+
+/* Formulaire de connexion */
+.join-form {
+  background-color: #1f2937; /* gray-800 */
+  padding: 1.5rem; /* p-6 */
+  border-radius: 0.5rem; /* rounded-lg */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+  width: 100%;
+  max-width: 24rem; /* max-w-sm */
+}
+
+.form-input {
+  width: 100%;
+  margin-bottom: 1rem; /* mb-4 */
+  padding: 0.5rem 0.75rem; /* px-3 py-2 */
+  border-radius: 0.25rem; /* rounded */
+  border: 1px solid #4b5563; /* border-gray-600 */
+  background-color: #374151; /* gray-700 */
+  color: white;
+}
+
+.form-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #f59e0b; /* focus:ring-2 focus:ring-yellow-400 */
+}
+
+.submit-button {
+  width: 100%;
+  background-color: #f59e0b; /* yellow-400 */
+  color: #111827; /* text-gray-900 */
+  font-weight: 600; /* font-semibold */
+  padding: 0.5rem 0; /* py-2 */
+  border-radius: 0.25rem; /* rounded */
+  transition: background-color 0.2s; /* transition */
+}
+
+.submit-button:hover {
+  background-color: #fbbf24; /* hover:bg-yellow-500 */
+}
+
+/* Interface de jeu */
+.game-container {
+  background-color: #1f2937; /* gray-800 */
+  padding: 1.5rem; /* p-6 */
+  border-radius: 0.5rem; /* rounded-lg */
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+  width: 100%;
+  max-width: 28rem; /* max-w-md */
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* space-y-6 */
+}
+
+.section-title {
+  color: #f59e0b; /* text-yellow-400 */
+  font-weight: 600; /* font-semibold */
+  margin-bottom: 0.5rem; /* mb-2 */
+}
+
+.room-info {
+  color: white;
+}
+
+.players-list {
+  color: white;
+  list-style-type: disc;
+  list-style-position: inside;
+  max-height: 8rem; /* max-h-32 */
+  overflow-y: auto;
+}
+
+.chat-container {
+  background-color: #374151; /* gray-700 */
+  padding: 0.75rem; /* p-3 */
+  border-radius: 0.25rem; /* rounded */
+  max-height: 10rem; /* max-h-40 */
+  overflow-y: auto;
+  color: white;
+  font-size: 0.875rem; /* text-sm */
+  margin-bottom: 0.5rem; /* mb-2 */
+}
+
+.message-input {
+  flex-grow: 1;
+  padding: 0.5rem 0.75rem; /* px-3 py-2 */
+  border-radius: 0.25rem; /* rounded */
+  border: 1px solid #4b5563; /* border-gray-600 */
+  background-color: #374151; /* gray-600 */
+  color: white;
+}
+
+.message-input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #f59e0b; /* focus:ring-2 focus:ring-yellow-400 */
+}
+
+.send-button {
+  background-color: #f59e0b; /* yellow-400 */
+  color: #111827; /* text-gray-900 */
+  font-weight: 600; /* font-semibold */
+  padding: 0.5rem 1rem; /* px-4 */
+  border-radius: 0.25rem; /* rounded */
+  transition: background-color 0.2s; /* transition */
+}
+
+.send-button:hover {
+  background-color: #fbbf24; /* hover:bg-yellow-500 */
+}
+
+.message-time {
+  font-size: 0.75rem; /* text-xs */
+  color: #9ca3af; /* text-gray-400 */
+  margin-left: 0.5rem; /* ml-2 */
+}
+
+.message-form {
+  display: flex;
+  gap: 0.5rem; /* space-x-2 */
+}
