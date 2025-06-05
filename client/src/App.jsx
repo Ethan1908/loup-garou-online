@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import socket from './socket';
 import './App.css';
 
@@ -362,20 +361,3 @@ function getRoleDescription(roleName) {
   };
   return descriptions[roleName] || '';
 }
-
-// PropTypes
-JoinForm.propTypes = {
-  onJoin: PropTypes.func.isRequired
-};
-
-NightActions.propTypes = {
-  role: PropTypes.object.isRequired,
-  players: PropTypes.array.isRequired,
-  onAction: PropTypes.func.isRequired
-};
-
-RoleSelection.propTypes = {
-  players: PropTypes.array.isRequired,
-  composition: PropTypes.object.isRequired,
-  onChange: PropTypes.func.isRequired
-};
