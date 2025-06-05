@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
 import socket from './socket';
 import './App.css';
 
 export default function App() {
+  // États du jeu
   const [player, setPlayer] = useState(null);
   const [room, setRoom] = useState(null);
   const [players, setPlayers] = useState([]);
@@ -13,53 +15,61 @@ export default function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
   const [notification, setNotification] = useState(null);
+  const [roleComposition, setRoleComposition] = useState({
+    LOUP_GAROU: 1,
+    VOYANTE: 1,
+    CHASSEUR: 1,
+    VILLAGEOIS: 1
+  });
 
   // Gestion des événements Socket.io
   useEffect(() => {
-    socket.on('joined', ({ room }) => setRoom(room));
-    socket.on('players-update', (players) => setPlayers(players));
-    socket.on('receive-message', ({ username, message, timestamp }) => {
-      setMessages(prev => [...prev, { username, message, timestamp }]);
-    });
-    socket.on('role-assigned', ({ role }) => {
-      setRole(role);
-      setNotification(`Vous êtes ${role.name}!`);
-    });
-    socket.on('game-started', () => setGameStarted(true));
-    socket.on('phase-change', ({ phase }) => {
-      setPhase(phase);
-      setTimeLeft(60);
-      setNotification(`Phase ${phase === 'night' ? 'nuit' : 'jour'} commence!`);
-    });
-    socket.on('player-killed', ({ victimId }) => {
-      setPlayers(prev => prev.filter(p => p.id !== victimId));
-    });
-    socket.on('voyante-result', ({ player, role }) => {
-      setNotification(`${player} est ${role}`);
+    const handlers = {
+      'joined': ({ room }) => setRoom(room),
+      'players-update': (players) => setPlayers(players),
+      'receive-message': ({ username, message, timestamp }) => {
+        setMessages(prev => [...prev, { username, message, timestamp }]);
+      },
+      'role-assigned': ({ role }) => {
+        setRole(role);
+        setNotification(`Vous êtes ${role.name}!`);
+      },
+      'game-started': () => setGameStarted(true),
+      'phase-change': ({ phase }) => {
+        setPhase(phase);
+        setTimeLeft(60);
+        setNotification(`Phase ${phase === 'night' ? 'nuit' : 'jour'} commence!`);
+      },
+      'player-killed': ({ victimId }) => {
+        setPlayers(prev => prev.filter(p => p.id !== victimId));
+      },
+      'voyante-result': ({ player, role }) => {
+        setNotification(`${player} est ${role}`);
+      },
+      'error': (err) => setNotification(`Erreur: ${err.message}`)
+    };
+
+    Object.entries(handlers).forEach(([event, handler]) => {
+      socket.on(event, handler);
     });
 
     return () => {
-      socket.off('joined');
-      socket.off('players-update');
-      socket.off('receive-message');
-      socket.off('role-assigned');
-      socket.off('game-started');
-      socket.off('phase-change');
-      socket.off('player-killed');
-      socket.off('voyante-result');
+      Object.entries(handlers).forEach(([event, handler]) => {
+        socket.off(event, handler);
+      });
     };
   }, []);
 
   // Timer des phases
   useEffect(() => {
-    if (phase !== 'night' && phase !== 'day') return;
+    if (!gameStarted || (phase !== 'night' && phase !== 'day')) return;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => prev <= 1 ? 60 : prev - 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [phase]);
+  }, [phase, gameStarted]);
 
   // Gestion des notifications
   useEffect(() => {
@@ -87,7 +97,16 @@ export default function App() {
 
   // Démarrer le jeu
   const handleStartGame = () => {
-    socket.emit('start-game', room);
+    const totalAssigned = Object.values(roleComposition).reduce((a, b) => a + b, 0);
+    const finalComposition = {
+      ...roleComposition,
+      VILLAGEOIS: roleComposition.VILLAGEOIS + (players.length - totalAssigned)
+    };
+
+    socket.emit('start-game', { 
+      roomCode: room, 
+      roleComposition: finalComposition 
+    });
   };
 
   // Vote loup-garou
@@ -131,13 +150,20 @@ export default function App() {
             </ul>
 
             {!gameStarted && players[0]?.id === socket.id && (
-              <button 
-                onClick={handleStartGame}
-                className="start-button"
-                disabled={players.length < 4}
-              >
-                Commencer la partie ({players.length}/8)
-              </button>
+              <div className="start-section">
+                <RoleSelection
+                  players={players}
+                  composition={roleComposition}
+                  onChange={setRoleComposition}
+                />
+                <button
+                  onClick={handleStartGame}
+                  className="start-button"
+                  disabled={players.length < 4}
+                >
+                  Commencer la partie ({players.length}/8)
+                </button>
+              </div>
             )}
           </div>
 
@@ -269,25 +295,6 @@ function NightActions({ role, players, onAction }) {
   );
 }
 
-function getRoleDescription(roleName) {
-  const descriptions = {
-    'Villageois': 'Vous devez trouver et éliminer les Loups-Garous.',
-    'Loup-Garou': 'Dévorer un villageois chaque nuit. Le jour, faites semblant d\'être innocent!',
-    'Voyante': 'Chaque nuit, découvrez le vrai rôle d\'un joueur.',
-    'Chasseur': 'Si vous mourez, vous pouvez emporter quelqu\'un avec vous.'
-  };
-  return descriptions[roleName] || '';
-}
-
-// Ajoutez cet état
-const [roleComposition, setRoleComposition] = useState({
-  LOUP_GAROU: 1,
-  VOYANTE: 1,
-  CHASSEUR: 1,
-  VILLAGEOIS: 1
-});
-
-// Composant pour la sélection des rôles
 function RoleSelection({ players, composition, onChange }) {
   const remaining = players.length - Object.values(composition).reduce((a, b) => a + b, 0);
 
@@ -309,7 +316,7 @@ function RoleSelection({ players, composition, onChange }) {
             type="number"
             min="1"
             value={composition.LOUP_GAROU}
-            onChange={(e) => handleChange('LOUP_GARAROU', e.target.value)}
+            onChange={(e) => handleChange('LOUP_GAROU', e.target.value)}
           />
         </div>
         <div className="role-input">
@@ -346,35 +353,29 @@ function RoleSelection({ players, composition, onChange }) {
   );
 }
 
-// Modifiez la fonction handleStartGame
-const handleStartGame = () => {
-  // Calculer le nombre de villageois automatiquement
-  const totalAssigned = Object.values(roleComposition).reduce((a, b) => a + b, 0);
-  const finalComposition = {
-    ...roleComposition,
-    VILLAGEOIS: roleComposition.VILLAGEOIS + (players.length - totalAssigned)
+function getRoleDescription(roleName) {
+  const descriptions = {
+    'Villageois': 'Vous devez trouver et éliminer les Loups-Garous.',
+    'Loup-Garou': 'Dévorer un villageois chaque nuit. Le jour, faites semblant d\'être innocent!',
+    'Voyante': 'Chaque nuit, découvrez le vrai rôle d\'un joueur.',
+    'Chasseur': 'Si vous mourez, vous pouvez emporter quelqu\'un avec vous.'
   };
+  return descriptions[roleName] || '';
+}
 
-  socket.emit('start-game', { 
-    roomCode: room, 
-    roleComposition: finalComposition 
-  });
+// PropTypes
+JoinForm.propTypes = {
+  onJoin: PropTypes.func.isRequired
 };
 
-// Ajoutez dans le rendu (là où se trouve le bouton start)
-{!gameStarted && players[0]?.id === socket.id && (
-  <div className="start-section">
-    <RoleSelection
-      players={players}
-      composition={roleComposition}
-      onChange={setRoleComposition}
-    />
-    <button
-      onClick={handleStartGame}
-      className="start-button"
-      disabled={players.length < 4}
-    >
-      Commencer la partie ({players.length}/8)
-    </button>
-  </div>
-)}
+NightActions.propTypes = {
+  role: PropTypes.object.isRequired,
+  players: PropTypes.array.isRequired,
+  onAction: PropTypes.func.isRequired
+};
+
+RoleSelection.propTypes = {
+  players: PropTypes.array.isRequired,
+  composition: PropTypes.object.isRequired,
+  onChange: PropTypes.func.isRequired
+};
