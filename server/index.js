@@ -48,6 +48,37 @@ function decideVictim(votes) {
   return victims[Math.floor(Math.random() * victims.length)];
 }
 
+// Fonction pour valider la composition des rôles
+function validateRoleComposition(composition, playerCount) {
+  const totalRoles = Object.values(composition).reduce((sum, count) => sum + count, 0);
+  return totalRoles === playerCount;
+}
+
+// Fonction pour mélanger un tableau
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+// Gestion des phases de jeu
+function startGamePhase(roomCode) {
+  let isNight = true;
+  
+  rooms[roomCode].timer = setInterval(() => {
+    io.to(roomCode).emit('phase-change', { 
+      phase: isNight ? 'night' : 'day' 
+    });
+    
+    if (!isNight) {
+      rooms[roomCode].votes = {};
+    }
+    
+    isNight = !isNight;
+  }, 60000); // 1 minute par phase
+}
+
 // Gestion des connexions Socket.io
 io.on('connection', (socket) => {
   console.log('✅ Nouveau joueur connecté:', socket.id);
@@ -72,21 +103,38 @@ io.on('connection', (socket) => {
     console.log(`${username} a rejoint la salle ${room}`);
   });
 
-  // Démarrer le jeu
-  socket.on('start-game', (roomCode) => {
-    if (rooms[roomCode] && rooms[roomCode].players.length >= 4) {
-      const roles = assignRoles(rooms[roomCode].players.length);
-      
-      rooms[roomCode].players.forEach((player, index) => {
-        player.role = roles[index];
-        io.to(player.id).emit('role-assigned', { 
-          role: ROLES[roles[index]] 
-        });
+  // Démarrer le jeu avec composition des rôles
+  socket.on('start-game', ({ roomCode, roleComposition }) => {
+    const room = rooms[roomCode];
+    if (!room || room.players.length < 4) return;
+
+    // Valider la composition
+    if (!validateRoleComposition(roleComposition, room.players.length)) {
+      socket.emit('composition-error', {
+        message: "La composition des rôles ne correspond pas au nombre de joueurs"
       });
-      
-      io.to(roomCode).emit('game-started');
-      startGamePhase(roomCode);
+      return;
     }
+
+    // Générer les rôles selon la composition
+    const roles = [];
+    for (const [role, count] of Object.entries(roleComposition)) {
+      for (let i = 0; i < count; i++) {
+        roles.push(role);
+      }
+    }
+
+    // Mélanger et attribuer les rôles
+    shuffleArray(roles);
+    room.players.forEach((player, index) => {
+      player.role = roles[index];
+      io.to(player.id).emit('role-assigned', { 
+        role: ROLES[roles[index]] 
+      });
+    });
+
+    io.to(roomCode).emit('game-started');
+    startGamePhase(roomCode);
   });
 
   // Gestion des votes des loups-garous
@@ -127,78 +175,17 @@ io.on('connection', (socket) => {
       if (index !== -1) {
         rooms[roomCode].players.splice(index, 1);
         io.to(roomCode).emit('players-update', rooms[roomCode].players);
+        
+        // Nettoyer la salle si vide
+        if (rooms[roomCode].players.length === 0) {
+          clearInterval(rooms[roomCode].timer);
+          delete rooms[roomCode];
+        }
         break;
       }
     }
   });
 });
-
-
-// Ajoutez cette fonction pour valider la composition des rôles
-function validateRoleComposition(composition, playerCount) {
-  const totalRoles = Object.values(composition).reduce((sum, count) => sum + count, 0);
-  return totalRoles === playerCount;
-}
-
-// Modifiez l'événement start-game
-socket.on('start-game', ({ roomCode, roleComposition }) => {
-  const room = rooms[roomCode];
-  if (!room || room.players.length < 4) return;
-
-  // Valider la composition
-  if (!validateRoleComposition(roleComposition, room.players.length)) {
-    io.to(socket.id).emit('composition-error', {
-      message: "La composition des rôles ne correspond pas au nombre de joueurs"
-    });
-    return;
-  }
-
-  // Générer les rôles selon la composition
-  const roles = [];
-  for (const [role, count] of Object.entries(roleComposition)) {
-    for (let i = 0; i < count; i++) {
-      roles.push(role);
-    }
-  }
-
-  // Mélanger et attribuer les rôles
-  shuffleArray(roles);
-  room.players.forEach((player, index) => {
-    player.role = roles[index];
-    io.to(player.id).emit('role-assigned', { 
-      role: ROLES[roles[index]] 
-    });
-  });
-
-  io.to(roomCode).emit('game-started');
-  startGamePhase(roomCode);
-});
-
-// Fonction pour mélanger un tableau
-function shuffleArray(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-}
-
-
-// Gestion des phases de jeu
-function startGamePhase(roomCode) {
-  let isNight = true;
-  
-  rooms[roomCode].timer = setInterval(() => {
-    io.to(roomCode).emit('phase-change', { 
-      phase: isNight ? 'night' : 'day' 
-    });
-    
-    if (!isNight) {
-      rooms[roomCode].votes = {};
-    }
-    
-    isNight = !isNight;
-  }, 60000); // 1 minute par phase
-}
 
 const PORT = process.env.PORT || 3001;
 httpServer.listen(PORT, () => {
