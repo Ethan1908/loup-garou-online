@@ -278,3 +278,103 @@ function getRoleDescription(roleName) {
   };
   return descriptions[roleName] || '';
 }
+
+// Ajoutez cet état
+const [roleComposition, setRoleComposition] = useState({
+  LOUP_GAROU: 1,
+  VOYANTE: 1,
+  CHASSEUR: 1,
+  VILLAGEOIS: 1
+});
+
+// Composant pour la sélection des rôles
+function RoleSelection({ players, composition, onChange }) {
+  const remaining = players.length - Object.values(composition).reduce((a, b) => a + b, 0);
+
+  const handleChange = (role, value) => {
+    const newValue = Math.max(0, Math.min(players.length, parseInt(value) || 0));
+    onChange({
+      ...composition,
+      [role]: newValue
+    });
+  };
+
+  return (
+    <div className="role-selection">
+      <h4>Composition des rôles</h4>
+      <div className="role-inputs">
+        <div className="role-input">
+          <label>Loups-Garous:</label>
+          <input
+            type="number"
+            min="1"
+            value={composition.LOUP_GAROU}
+            onChange={(e) => handleChange('LOUP_GARAROU', e.target.value)}
+          />
+        </div>
+        <div className="role-input">
+          <label>Voyante:</label>
+          <input
+            type="number"
+            min="0"
+            value={composition.VOYANTE}
+            onChange={(e) => handleChange('VOYANTE', e.target.value)}
+          />
+        </div>
+        <div className="role-input">
+          <label>Chasseur:</label>
+          <input
+            type="number"
+            min="0"
+            value={composition.CHASSEUR}
+            onChange={(e) => handleChange('CHASSEUR', e.target.value)}
+          />
+        </div>
+        <div className="role-input">
+          <label>Villageois:</label>
+          <span>{composition.VILLAGEOIS + remaining}</span>
+        </div>
+      </div>
+      {remaining !== 0 && (
+        <p className="composition-warning">
+          {remaining > 0 
+            ? `Il reste ${remaining} rôle(s) à attribuer`
+            : `Vous avez ${-remaining} rôle(s) en trop`}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Modifiez la fonction handleStartGame
+const handleStartGame = () => {
+  // Calculer le nombre de villageois automatiquement
+  const totalAssigned = Object.values(roleComposition).reduce((a, b) => a + b, 0);
+  const finalComposition = {
+    ...roleComposition,
+    VILLAGEOIS: roleComposition.VILLAGEOIS + (players.length - totalAssigned)
+  };
+
+  socket.emit('start-game', { 
+    roomCode: room, 
+    roleComposition: finalComposition 
+  });
+};
+
+// Ajoutez dans le rendu (là où se trouve le bouton start)
+{!gameStarted && players[0]?.id === socket.id && (
+  <div className="start-section">
+    <RoleSelection
+      players={players}
+      composition={roleComposition}
+      onChange={setRoleComposition}
+    />
+    <button
+      onClick={handleStartGame}
+      className="start-button"
+      disabled={players.length < 4}
+    >
+      Commencer la partie ({players.length}/8)
+    </button>
+  </div>
+)}

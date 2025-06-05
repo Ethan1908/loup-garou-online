@@ -273,3 +273,50 @@
     font-size: 1.75rem;
   }
 }
+
+/* Styles pour la sélection des rôles */
+.role-selection {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 0.5rem;
+}
+
+.role-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.role-input {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.role-input label {
+  margin-right: 0.5rem;
+}
+
+.role-input input {
+  width: 50px;
+  padding: 0.25rem;
+  text-align: center;
+  background-color: #374151;
+  color: white;
+  border: 1px solid #4b5563;
+  border-radius: 0.25rem;
+}
+
+.composition-warning {
+  color: #f59e0b;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+.start-section {
+  margin-top: 1rem;
+  width: 100%;
+}

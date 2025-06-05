@@ -36,25 +36,6 @@ function generateRoomCode() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
 
-// Attribution des rôles
-function assignRoles(playerCount) {
-  const roles = [];
-  const loupGarouCount = Math.max(1, Math.floor(playerCount / 4));
-  
-  for (let i = 0; i < loupGarouCount; i++) {
-    roles.push('LOUP_GAROU');
-  }
-  
-  roles.push('VOYANTE');
-  roles.push('CHASSEUR');
-  
-  while (roles.length < playerCount) {
-    roles.push('VILLAGEOIS');
-  }
-  
-  return roles.sort(() => Math.random() - 0.5);
-}
-
 // Décision de la victime
 function decideVictim(votes) {
   const voteCount = {};
@@ -151,6 +132,56 @@ io.on('connection', (socket) => {
     }
   });
 });
+
+
+// Ajoutez cette fonction pour valider la composition des rôles
+function validateRoleComposition(composition, playerCount) {
+  const totalRoles = Object.values(composition).reduce((sum, count) => sum + count, 0);
+  return totalRoles === playerCount;
+}
+
+// Modifiez l'événement start-game
+socket.on('start-game', ({ roomCode, roleComposition }) => {
+  const room = rooms[roomCode];
+  if (!room || room.players.length < 4) return;
+
+  // Valider la composition
+  if (!validateRoleComposition(roleComposition, room.players.length)) {
+    io.to(socket.id).emit('composition-error', {
+      message: "La composition des rôles ne correspond pas au nombre de joueurs"
+    });
+    return;
+  }
+
+  // Générer les rôles selon la composition
+  const roles = [];
+  for (const [role, count] of Object.entries(roleComposition)) {
+    for (let i = 0; i < count; i++) {
+      roles.push(role);
+    }
+  }
+
+  // Mélanger et attribuer les rôles
+  shuffleArray(roles);
+  room.players.forEach((player, index) => {
+    player.role = roles[index];
+    io.to(player.id).emit('role-assigned', { 
+      role: ROLES[roles[index]] 
+    });
+  });
+
+  io.to(roomCode).emit('game-started');
+  startGamePhase(roomCode);
+});
+
+// Fonction pour mélanger un tableau
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
 
 // Gestion des phases de jeu
 function startGamePhase(roomCode) {
